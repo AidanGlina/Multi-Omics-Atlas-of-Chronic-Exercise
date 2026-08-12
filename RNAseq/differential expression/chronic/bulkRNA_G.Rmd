@@ -1,0 +1,285 @@
+---
+title: "bulkRNA_G"
+author: "msun"
+date: "9/13/2022"
+output: html_document
+---
+
+#step 1: get the gene expression table
+```{r echo=FALSE,results = 'hide' #1.read and merge the tab data with no colnames and rownames}
+library(tidyverse)
+files <- dir(path = "/data/msun/projects/pandas/geraldine/raw_data/readcountstab", pattern = "*.tab", full.names = T) #path of all tab data
+count <- files %>%
+  map(read_tsv,  skip = 4, col_names = FALSE ) %>% 
+  purrr::reduce(cbind)
+##map function is very like for loop, "read_tsv" is the function that read tab data, "skip = 4" means skip the rownnames(we have 4 rownmeas), and "col_names=FALSE" means that we don't want colnames too.  skip=4 and col_names=False are both parameter that pass to read_tsv function. "%>%" can serve as channel passing all the results to next function
+#reduce is the simplier way than "for" loop, cbind can help us bind all data together. 
+```
+
+```{r 2.get the sample names from tab files names and assign the true colnames to table}
+datasets <- files %>%
+  stringr::str_replace("/data/msun/projects/pandas/geraldine/raw_data/readcountstab/", "") %>% # replace pathname at the beginning of filename
+  stringr::str_replace("ReadsPerGene.out.tab", "") # replace ReadsPerGene.out.tab end of name
+columnnames <- c()
+for (i in datasets) {
+  columnnames <- c(columnnames,
+                  paste0("gene_", i),
+                  paste0(i, "-unstranded"),
+                  paste0(i, "-forwardstrand"),
+                  paste0(i, "-reversestrand"))}
+names(count) <- columnnames
+```
+
+```{r 3.check how the company generated library}
+#STAR does not require us to specify whether the RNA-seq library was generated in a strand-specific manner, and, if so, which strand was retained in the final sequencing. Instead, it provides 3 counts per library:
+#-as if the library was unstranded
+#-if the library was stranded “forward”, i.e. the second cDNA strand was the one sequenced, i.e. it is the same as the original mRNA sample
+#-if the library was stranded “reverse”, i.e. the first cDNA strand is the one sequenced, so its sequence is the complement of the original mRNA
+
+#get library size
+count <- count %>%
+  mutate(ensembl_gene = gene_Adrenal_F_RW1_ZT4_S67) %>% 
+  dplyr::select(-starts_with("gene")) 
+#mutate is adding one column
+#select is select column in the data and delete those columns that started with "gene"
+
+infer_strand <- count %>% 
+  dplyr::select(-ensembl_gene) %>% # remove gene name column
+  summarize(across(where(is.numeric),sum)) %>%  # sum by columns
+  gather(library, counts) %>% # split library column into dataset and protocol 
+  separate(library, into = c("treatment","stranding"), sep="-") %>% # split library into 2 columns
+  spread(stranding,counts) %>% # make columns for each of the strandings
+  mutate(propF = forwardstrand/unstranded, propR = reversestrand/unstranded) # assess rev/unst and for/unst
+#more reads unambiguously overlap with genes using the “reverse” approach
+#we can use a tool called infer_stranding.py from rseqc software http://rseqc.sourceforge.net/
+#why propR>1?
+#The reason the count of reads overlapping in a strand-specific manner is higher than in an unstranded manner is that the human genome has many antisense transcripts, and any read that falls into a genomic region that contains an overlap of sense and antisense transcripts will not be able to be unambiguously assigned with a protocol where the strand is unknown.
+
+#assess whether the library depth is similar for all of our samples
+#library depth:“number of reads counted towards annotated genes in the genome”, NOT “number of uniquely mapped reads”:
+count %>% # remove gene name column
+  dplyr::select(ends_with("reversestrand")) %>%
+  summarize(across(where(is.numeric),sum))  %>%  # gather wide data (columns) into a long table
+  gather(library, counts) %>%  # split library column into dataset and protocol
+  separate(library, into = c("treatment", "stranding"), sep="-") %>%
+  dplyr::select(-stranding) %>%
+  ggplot(aes(y = counts, x = treatment)) + geom_bar(stat = "identity", position = "dodge") + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(), axis.ticks.x=element_blank())
+
+#keep reverse stranded samples
+row.names(count) <- count$ensembl_gene
+count<- count %>% 
+  dplyr::select(-ends_with("unstranded"), -ends_with("forwardstrand"),-ensembl_gene) 
+names(count) <- str_replace(names(count), "-reversestrand", "")
+```
+
+# step2: quality control
+```{r }
+#correct the sample names
+library(edgeR)
+#correct_name=read.csv("/data/msun/projects/pandas/geraldine/raw_data/correct_samplenames.csv",row.names = 1) 
+#t_count <- as.data.frame(t(count)) 
+#correct_count <- merge(t_count,correct_name,by=0)#merge by rownames
+#rownames(correct_count) <- correct_count$Sample.names.corrected
+#right_count <-as.data.frame(t(subset(correct_count,select=c(-Row.names,-Sample.names.corrected)))) %>% .[,1:384] #delete undetermined samples
+
+#Genes with very low expression levels:
+#a.Are impossible to accurately assess for differential expression
+#b.Add to the multiple testing burden, thereby reducing the power to detect truly differentially expressed genes
+#the standard way to do is using filterexpr in edgR, which needs group as input. but we got 128 groups, so this methods dosen't work for our data.
+#we need to filter gene manually
+gex_count <- as.matrix(count) 
+gex_cpm <- edgeR::cpm(gex_count)
+#As a good rule of thumb, we want to filter out genes that have counts less than 10-15 reads in our raw data.
+#figure out how many reads that would be given our library depth. 
+infer_read_cutoff <- count %>%
+  purrr::modify(~sum(.)) %>% 
+  distinct() %>%
+  gather(library, counts) %>%  # get all reads number of samples
+  mutate(millionreads = counts/(10^6)) %>%
+  mutate(cpmThreshold = 15/millionreads,cutoff_0.4 = 0.4 * millionreads,cutoff_0.5=0.5*millionreads,cutoff_0.6=0.6*millionreads)
+#seems 0.4 makes sense.
+
+#filter low expression gene
+keep_cpm <- rowSums(gex_cpm>0.4) >= 3 # 3 is the duplicates per group, and 0.4 = mean(infer_read_cutoff$counts) /10 reads (is not that important)
+table(keep_cpm) 
+count_filter <- gex_count[keep_cpm,]
+
+#convert to dge
+library(edgeR)
+dge <- DGEList(count_filter)
+
+#filter out low quality samples
+subset(dge$samples, dge$samples$lib.size < 3000000) 
+#                      group lib.size norm.factors
+#TA_ten_M32_S116_L002     1  2069791            1
+count_filter_sample_filter <- count_filter[,!colnames(count_filter) %in% c("TA_ten_M32_S116_L002","Undetermined_S0_L001","Undetermined_S0_L002","Undetermined_S0_L003","Undetermined_S0_L004")]
+dge <- DGEList(count_filter_sample_filter)
+
+#How different are the library depths after filtering?
+dge$samples %>% 
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  ggplot(aes(y = lib.size, x = rowname)) +geom_bar(stat = "identity", position = "dodge") + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+```
+
+#convert to DEG list and add genes and metadata
+```{r }
+#add genes annotation
+library(AnnotationHub)
+library(org.Mm.eg.db)
+ah <- AnnotationHub()
+ahDb <- query(ah,  pattern = c("Mus musculus", "EnsDb"), ignore.case = TRUE)
+id <- ahDb %>% mcols() %>% rownames() %>% tail(n = 1)
+edb <- ah[[id]]
+annotations <- genes(edb,return.type = "data.frame") %>%
+        dplyr::select(gene_id, gene_name, seq_name, gene_biotype, description)
+write.csv(annotations,"/data/msun/references/mm_gene_annotation.csv") # get the mouse gene annotations from web
+gene_id <- as.data.frame(rownames(dge))
+names(gene_id) <- "gene_id"
+dge$genes <- gene_id %>% 
+  left_join(y = unique(annotations[, c("gene_id","gene_name", "description","gene_biotype")]),by = "gene_id")
+
+#add meatadata
+metadata <- read.csv("/data/msun/projects/pandas/geraldine/raw_data/samplenames.csv") 
+metadata$correctednames <- str_c(metadata$Tissue,'_',metadata$Sex,'_',metadata$Group,'_ZT',metadata$ZT,'_S',seq(1, length(rownames(metadata))))
+sample_id <- as.data.frame(colnames(dge))
+names(sample_id) <- "sample.names.orignal"
+dge$samples <- sample_id %>% 
+  left_join(y = metadata,by = "sample.names.orignal") %>% column_to_rownames("sample.names.orignal") %>%
+  cbind(dge$samples)
+
+#correct names
+colnames(dge$counts) <- metadata$correctednames
+rownames(dge$samples) <- metadata$correctednames
+write.csv(metadata,file = "/data/msun/projects/pandas/geraldine/raw_data/samples_metadata_correctnames.csv")
+
+#updata metadata by adding library size
+summary <- dge$samples %>% .[,-which(colnames(.) %in% c("correctednames","group","norm.factors"))]
+write.csv(summary,file = "/data/msun/projects/pandas/geraldine/01_preprocess/summary_sample.csv")
+```
+
+#normalize by tissue and add genes
+```{r}
+#The calcNormFactors function normalizes the library sizes by finding a set of scaling factors
+#for the library sizes that minimizes the log-fold changes between the samples for most genes.
+#The default method for computing these scale factors uses a trimmed mean of M-values (TMM) between each pair of samples. We call the product of the original library size
+#and the scaling factor the effective library size
+
+#1. calculate norm factors per tissue
+library(ribiosNGS)
+dge.list<- dge %>% splitDGEList(dge$samples$Tissue,bySample = TRUE,sampleDropLevels = FALSE) %>% map( ~ calcNormFactors(.)) #dge seperate by tissue, has norm.factors
+expr.list <- dge.list %>% map( ~ edgeR::cpm(.,log=TRUE)) # expr(norm expression) seperate by tisssue 
+expr<- dge.list %>% map( ~ edgeR::cpm(.,log=TRUE)) %>% purrr::reduce(cbind) # whole normalized gene expression
+dgecounts <- map(dge.list, ~ .$counts) %>% purrr::reduce(cbind)
+dgesamples <- map(dge.list, ~ .$samples) %>% purrr::reduce(rbind) 
+dge.norm <- DGEList(counts = dgecounts,samples = dgesamples,genes = dge$genes) #dge with norm.factors
+dge.norm$samples <- ribiosUtils::removeColumns(dge.norm$samples,c("lib.size.1", "norm.factors")) %>% ribiosUtils::replaceColumnName(data.frame=.,old.names = "norm.factors.1",new.names = "norm.factors")
+
+#another form: convert rownames to gene symbol
+expr_symbol <- left_join(as.data.frame(expr) %>%  mutate("gene_id"=rownames(.)),dge.norm$genes,by="gene_id") %>% .[,-which(colnames(.) %in% c("gene_id","description","gene_biotype"))] %>% dplyr::select(gene_name,everything()) %>% na.omit(.) 
+
+save(count,count_filter,count_filter_sample_filter,dge,dge.list,dge.norm,expr,expr_symbol,expr.list,file = "/data/msun/projects/pandas/geraldine/01_preprocess/preprocess_filtered.Rdata")
+
+write.csv(dge$counts,file = "/data/msun/projects/pandas/geraldine/01_preprocess/filtered_counts.csv")
+write.csv(expr,file = "/data/msun/projects/pandas/geraldine/01_preprocess/filtered_norm.csv")
+```
+
+
+#fetch none filtered data
+#```{r}
+library(edgeR)
+library(tidyverse)
+right_count <- right_count[,!colnames(right_count) %in% c("TATen_M32_S116")]
+nofilter_dge <- DGEList(right_count)
+library(AnnotationHub)
+library(org.Mm.eg.db)
+gene_nofilter <- as.data.frame(rownames(nofilter_dge))
+names(gene_nofilter) <- "gene_id"
+nofilter_dge$genes <- gene_nofilter %>% 
+  left_join(y = unique(annotations[, c("gene_id","gene_name", "description","gene_biotype")]),by = "gene_id")
+
+#add metadata
+metadata <- read.csv("/data/msun/projects/pandas/geraldine/raw_data/metadata.csv") 
+sample_id <- as.data.frame(colnames(nofilter_dge))
+names(sample_id) <- "RecordID"
+nofilter_dge$samples <- sample_id %>% 
+  left_join(y = metadata,by = "RecordID") %>% column_to_rownames("RecordID") %>%
+  cbind(nofilter_dge$samples)
+
+library(ribiosNGS)
+nofilter_dge.list<- nofilter_dge %>% splitDGEList(nofilter_dge$samples$Tissue,bySample = TRUE,sampleDropLevels = FALSE) %>% map( ~ calcNormFactors(.))
+nofilter_expr<- nofilter_dge.list %>% map( ~ cpm(.,log=TRUE)) %>% purrr::reduce(cbind) # normalized gene expression by TPM
+nofilter_dgecounts <- map(nofilter_dge.list, ~ .$counts) %>% reduce(cbind)
+nofilter_dgesamples <- map(nofilter_dge.list, ~ .$samples) %>% reduce(rbind) 
+nofilter_dge.norm <- DGEList(counts = nofilter_dgecounts,samples = nofilter_dgesamples,genes = nofilter_dge$genes) 
+nofilter_dge.norm$samples <- ribiosUtils::removeColumns(nofilter_dge.norm$samples,c("lib.size.1", "norm.factors")) %>% ribiosUtils::replaceColumnName(data.frame=.,old.names = "norm.factors.1",new.names = "norm.factors")
+rownames(nofilter_dge.norm$genes) <- nofilter_dge.norm$genes$gene_id
+nofilter_expr_symbol <- merge(as.data.frame(nofilter_expr),nofilter_dge.norm$genes,by = 0,all.x=TRUE) %>% .[,-c(1,388,387,385)] %>% dplyr::select(gene_name,everything()) %>% na.omit(.)
+#write.table(nofilter_expr_symbol,file='/data/msun/projects/pandas/geraldine/04_compass/nofilter_expr_symbol.tsv',sep = "\t",quote = FALSE)
+#write.table(expr_symbol,file='/data/msun/projects/pandas/geraldine/04_compass/expr_symbol.tsv',sep = "\t",quote = FALSE)
+#modify in spreadsheet
+save(nofilter_dge.norm,nofilter_expr,nofilter_expr_symbol,file = "/data/msun/projects/pandas/geraldine/01_preprocess/preprocess_nofilter.Rdata")
+#```
+
+#get tpm form data
+```{r}
+#get effective gene length from gtf
+library(tidyverse)
+library(parallel)
+cl <- makeCluster(0.75*detectCores()) 
+gtf <- as.data.frame(rtracklayer::import("/data/msun/projects/pandas/geraldine/raw_data/Mus_musculus.GRCm38.102.gtf"))
+exon <- gtf[gtf$type=="exon", c("start","end","gene_id")]
+exon_bygeneid <- split(exon,exon$gene_id) 
+efflen <- parLapply(cl,exon_bygeneid,function(x){
+      tmp <- apply(x,1,function(y){  y[1]:y[2]  })          
+      length(unique(unlist(tmp)))
+      })
+geneid_efflen <- data.frame(geneid=names(efflen),
+                                efflen=as.numeric(efflen))
+write.csv(geneid_efflen,"/data/msun/projects/pandas/geraldine/01_preprocess/mus_genelength_id.csv")
+
+#transfer counts to TPM
+efflen <- geneid_efflen[match(rownames(dge$counts),
+                              geneid_efflen$geneid),
+                        "efflen"]
+counts2TPM <- function(count=count, efflength=efflen){
+  RPK <- count/(efflength/1000)       
+  PMSC_rpk <- sum(RPK)/1e6        
+  RPK/PMSC_rpk                    
+  }  
+tpm_geneid <- as.data.frame(apply(dge$counts,2,counts2TPM))
+
+#another form: convert rownames to gene symbol
+tpm_symbol <- as.data.frame(tpm_geneid) %>% mutate(.,"gene_id"=rownames(.)) %>% left_join(.,dge$genes,by="gene_id") %>% .[ , -which(colnames(.) %in% c("gene_id","description","gene_biotype"))] %>% dplyr::select(gene_name,everything()) %>% na.omit(.)
+tpm_symbol_duplicated <- tpm_symbol[!duplicated(tpm_symbol$gene_name),]
+write.table(tpm_symbol_duplicated,file='/data/msun/projects/pandas/geraldine/04_compass/tpm_symbol_duplicated.tsv',sep = "\t",row.names = FALSE)
+save(tpm_geneid,tpm_symbol,tpm_symbol_duplicated,file = "/data/msun/projects/pandas/geraldine/01_preprocess/tpm.Rdata")
+```
+
+#run with python on terminal
+```{r}
+library(reticulate)
+```
+```{python}
+#remove NA generated by read in python
+import numpy as np
+import pandas as pd
+df = pd.read_csv('/data/msun/projects/pandas/geraldine/04_compass/tpm_symbol_duplicated.tsv', sep='\t', index_col=None, header=0)
+df.dropna(subset=['gene_name'], inplace=True)
+df=df.rename(columns = {'gene_name':'Gene Symbol'})
+df.to_csv('/data/msun/projects/pandas/geraldine/04_compass/tpm_symbol.tsv', sep='\t', index=False)
+df
+```
+
+#qc table 
+```{r}
+table <- left_join(as.data.frame(dge$counts) %>% mutate(gene_id = rownames(.)),as.data.frame(dge$genes),by = "gene_id") %>% na.omit(.) %>% .[ , -which(colnames(.) %in% c("gene_name","description","gene_id"))]
+kind_table <- replace(table,table>0,1) %>% .[,-which(colnames(.) %in% c("gene_biotype"))]
+kind_table$gene_biotype <- table$gene_biotype 
+df <- aggregate(.~gene_biotype, kind_table, sum) %>% column_to_rownames(.,var = "gene_biotype")
+write.csv(df,"/data/msun/projects/pandas/geraldine/01_preprocess/qc_by_featureRNA.csv")
+```
+
