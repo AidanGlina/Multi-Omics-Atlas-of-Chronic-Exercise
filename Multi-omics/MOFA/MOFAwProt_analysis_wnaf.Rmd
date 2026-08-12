@@ -1,0 +1,774 @@
+---
+title: "mofa w prot analysis"
+output: 
+---
+
+```{r}
+library(reticulate)
+use_condaenv("base", required=TRUE) #need this for mofapy2 python package
+setwd("/Users/aidanglina/Desktop/MOFA/analysis_w_prot")
+```
+
+```{r}
+library(data.table)
+library(MOFA2)
+library(ggplot2)
+
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+dt = fread('~/Desktop/MOFA/long_exp_mofa_input_wnaf_lp.tsv')
+head(dt)
+
+model <- load_model("exMOFAmodel2mbrnaprot_wnaf_lp.hdf5")
+plot_data_overview(model)
+
+#pdf("wnaf-plots/protsamples.pdf", width = 10.5)#, height = 1000)
+#plot_data_overview(model)
+#dev.off()
+```
+```{r}
+
+sample_metadata <- data.frame(
+  sample = samples_names(model)[[1]])
+sample_metadata <- sample_metadata %>%
+  separate(sample, into = c("Sex", "Group", "TP"), sep = "_", remove = FALSE)
+sample_metadata$Sex <- substr(sample_metadata$Sex, 1, nchar(sample_metadata$Sex) - 2)
+
+sample_metadata$gst <- paste(sample_metadata$Group, sample_metadata$Sex, sample_metadata$TP, sep = "-") 
+sample_metadata$st <- paste(sample_metadata$Sex, sample_metadata$TP, sep = "-")
+sample_metadata$gt <- paste(sample_metadata$Group, sample_metadata$TP, sep = "-")
+sample_metadata$sg <- paste(sample_metadata$Sex, sample_metadata$Group, sep = "-")
+
+samples_metadata(model) <- sample_metadata
+head(samples_metadata(model), n=3)
+```
+```{r}
+lpf <- correlate_factors_with_covariates(model, 
+  covariates = c("Group",'Sex','TP'), #,'st','gt','sg'
+  plot="log_pval"
+)
+lpf
+pdf("wnaf-plots/logp-factors-badlabel.pdf", width = 10.5)#, height = 1000)
+lpf
+dev.off()
+```
+
+```{r}
+#plot_variance_explained(model, x="view", y="factor")
+p <- plot_variance_explained(model, x = "view", y = "factor")
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+#pdf("wnaf-plots/variance-explained-by-layer1.pdf", width = 10.5)#, height = 1000)
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+#dev.off()
+```
+
+```{r}
+pdf("wnaf-plots/factor-correlation.pdf", width = 10.5)#, height = 1000)
+plot_factor_cor(model)
+dev.off()
+plot_factor_cor(model)
+```
+
+```{r}
+p <- plot_variance_explained(model, x="view", y="factor", plot_total = TRUE)[[2]]
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+pdf("wnaf-plots/variance-explained-total.pdf", width = 10.5)#, height = 1000)
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+dev.off()
+```
+
+```{r}
+
+
+#pdf("wnaf-plots/quad-prot-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "QUAD_protein",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+
+#pdf("wnaf-plots/gas-prot-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "GAS_protein",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+
+#pdf("wnaf-plots/bf-prot-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "BF_protein",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+```
+```{r}
+#pdf("wnaf-plots/quad-metab-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "QUAD_metabolite",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+
+#pdf("wnaf-plots/gas-metab-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "GAS_metabolite",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+
+#pdf("wnaf-plots/bf-metab-line-group-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_data_scatter(model,
+  view = "BF_metabolite",         # view of interest
+  factor = 3,             # factor of interest
+  features = 4,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+#dev.off()
+```
+
+```{r}
+plot_data_scatter(model,
+  view = "GAS_protein",         # view of interest
+  factor = 3,             # factor of interest
+  features = 10,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+```
+```{r}
+plot_data_scatter(model,
+  view = "BF_protein",         # view of interest
+  factor = 3,             # factor of interest
+  features = 10,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "Group"
+)
+```
+
+```{r}
+plot_data_scatter(model,
+  view = "GAS_protein",         # view of interest
+  factor = 2,             # factor of interest
+  features = 6,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "TP"
+)
+```
+
+```{r}
+plot_data_scatter(model,
+  view = "QUAD_protein",         # view of interest
+  factor = 2,             # factor of interest
+  features = 6,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "TP"
+)
+```
+
+```{r}
+plot_data_scatter(model,
+  view = "BF_protein",         # view of interest
+  factor = 2,             # factor of interest
+  features = 6,           # number of features to plot (they are selected by weight)
+  add_lm = TRUE,          # add linear regression
+  color_by = "TP"
+)
+```
+
+```{r}
+plot_weights(model,
+  view = "BF_protein",
+  factor = 2,
+  nfeatures = 10,     # Number of features to highlight
+  scale = TRUE,          # Scale weights from -1 to 1
+  abs = FALSE             # Take the absolute value?
+)
+
+plot_weights(model,
+  view = "BF_rna",
+  factor = 2,
+  nfeatures = 10,     # Number of features to highlight
+  scale = TRUE,          # Scale weights from -1 to 1
+  abs = FALSE             # Take the absolute value?
+)
+```
+
+
+```{r}
+
+
+pdf("wnaf-plots/bf-prot-weights-ex-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_top_weights(model,
+  view = "BF_protein",
+  factor = 3, #factor 1 is the sex dependent factor
+  nfeatures = 10
+)
+dev.off()
+
+pdf("wnaf-plots/gas-prot-weights-ex-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_top_weights(model,
+  view = "GAS_protein",
+  factor = 3, #factor 1 is the sex dependent factor
+  nfeatures = 10
+)
+dev.off()
+
+pdf("wnaf-plots/quad-prot-weights-ex-wnaf.pdf", width = 10.5)#, height = 1000)
+plot_top_weights(model,
+  view = "QUAD_protein",
+  factor = 3, #factor 1 is the sex dependent factor
+  nfeatures = 10
+)
+dev.off()
+```
+
+
+```{r}
+library(dplyr)
+library(stringr)
+weightdflong <- get_weights(model, as.data.frame = TRUE)
+
+metabolitedf <- weightdflong %>%
+  filter(!is.na(feature)) %>%
+  filter(str_detect(view, regex("metabolite\\s*$", ignore_case = TRUE))) %>% #feature to view
+  mutate(feature = str_replace(feature, "_.*$", "") |> str_trim())
+
+
+wdl1mb <- metabolitedf[metabolitedf$factor == "Factor1", ]
+wdl2mb <- metabolitedf[metabolitedf$factor == "Factor2", ]
+wdl3mb <- metabolitedf[metabolitedf$factor == "Factor3", ]
+wdl4mb <- metabolitedf[metabolitedf$factor == "Factor4", ]
+wdl5mb <- metabolitedf[metabolitedf$factor == "Factor5", ]
+
+### this part is breaking. probably because duplicate feature names?
+wdf1mb <- reshape2::acast(wdl1mb, feature ~ view, value.var = "value")
+wdf2mb <- reshape2::acast(wdl2mb, feature ~ view, value.var = "value")
+wdf3mb <- reshape2::acast(wdl3mb, feature ~ view, value.var = "value")
+wdf4mb <- reshape2::acast(wdl4mb, feature ~ view, value.var = "value")
+wdf5mb <- reshape2::acast(wdl5mb, feature ~ view, value.var = "value")
+
+RNAdf <- weightdflong %>%
+  filter(!is.na(feature)) %>%
+  filter(str_detect(view, regex("RNA\\s*$", ignore_case = TRUE))) %>% #feature to view
+  mutate(feature = str_replace(feature, "_.*$", "") |> str_trim())
+
+wdl1RNA <- RNAdf[RNAdf$factor == "Factor1", ]
+wdl2RNA <- RNAdf[RNAdf$factor == "Factor2", ]
+wdl3RNA <- RNAdf[RNAdf$factor == "Factor3", ]
+wdl4RNA <- RNAdf[RNAdf$factor == "Factor4", ]
+wdl5RNA <- RNAdf[RNAdf$factor == "Factor5", ]
+
+wdf1RNA <- reshape2::acast(wdl1RNA, feature ~ view, value.var = "value")
+wdf2RNA <- reshape2::acast(wdl2RNA, feature ~ view, value.var = "value")
+wdf3RNA <- reshape2::acast(wdl3RNA, feature ~ view, value.var = "value")
+wdf4RNA <- reshape2::acast(wdl4RNA, feature ~ view, value.var = "value")
+wdf5RNA <- reshape2::acast(wdl5RNA, feature ~ view, value.var = "value")
+
+namedf <- fread("~/Desktop/MOFA/all_mbrna-expr.txt")
+namedf = namedf[,c('ProbeID','Name')]
+rownames(namedf) <- namedf$ProbeID
+
+
+new_names <- namedf[.(rownames(wdf1mb)), on = .(ProbeID), Name]#namedf[rownames(wdf1mb), "Name"]
+rownames(wdf1mb) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf1mb), new_names)
+new_names <- namedf[.(rownames(wdf2mb)), on = .(ProbeID), Name]
+rownames(wdf2mb) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf2mb), new_names)
+new_names <- namedf[.(rownames(wdf3mb)), on = .(ProbeID), Name]
+rownames(wdf3mb) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf3mb), new_names)
+new_names <- namedf[.(rownames(wdf4mb)), on = .(ProbeID), Name]
+rownames(wdf4mb) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf4mb), new_names)
+new_names <- namedf[.(rownames(wdf5mb)), on = .(ProbeID), Name]
+rownames(wdf5mb) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf5mb), new_names)
+
+new_names <- namedf[.(rownames(wdf1RNA)), on = .(ProbeID), Name]#namedf[rownames(wdf1RNA), "Name"]
+rownames(wdf1RNA) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf1RNA), new_names)
+new_names <- namedf[.(rownames(wdf2RNA)), on = .(ProbeID), Name]
+rownames(wdf2RNA) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf2RNA), new_names)
+new_names <- namedf[.(rownames(wdf3RNA)), on = .(ProbeID), Name]
+rownames(wdf3RNA) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf3RNA), new_names)
+new_names <- namedf[.(rownames(wdf4RNA)), on = .(ProbeID), Name]
+rownames(wdf4RNA) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf4RNA), new_names)
+new_names <- namedf[.(rownames(wdf5RNA)), on = .(ProbeID), Name]
+rownames(wdf5RNA) <- ifelse(is.na(new_names) | new_names == "", rownames(wdf5RNA), new_names)
+```
+
+```{r}
+library(ComplexHeatmap)
+hmrna1 <- Heatmap(wdf1RNA[order(rowSums(abs(wdf1RNA)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 1 (Sex) RNA", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor1RNA-wnaf.pdf", width = 900/300, height = 2700/300)#, res = 300)
+draw(hmrna1)
+dev.off()
+
+hmrna2 <- Heatmap(wdf2RNA[order(rowSums(abs(wdf2RNA)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 2 (Time Point) RNA", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor2RNA-wnaf.pdf",width = 1000/300, height = 2700/300)#, res = 300))#.png", 
+draw(hmrna2)
+dev.off()
+
+hmrna3 <- Heatmap(wdf3RNA[order(rowSums(abs(wdf3RNA)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 3 (Exercise) RNA", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor3RNA-wnaf.pdf", width = 1000/300, height = 2700/300)#.png", res = 300)
+draw(hmrna3)
+dev.off()
+
+hmmb1 <- Heatmap(wdf1mb[order(rowSums(abs(wdf1mb)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 1 (Sex) metabolites", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor1mb-wnaf.pdf",width = 1500/300, height = 2850/300)#, res = 300) )#.png", 
+draw(hmmb1)
+dev.off()
+
+hmmb2 <- Heatmap(wdf2mb[order(rowSums(abs(wdf2mb)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 2 (Time Point) metabolites", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor2mb-wnaf.pdf",width = 1600/300, height = 2850/300)#)#.png", , res = 300)
+draw(hmmb2)
+dev.off()
+
+hmmb3 <- Heatmap(wdf3mb[order(rowSums(abs(wdf3mb)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 3 (Exercise) metabolites", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor3mb-wnaf.pdf",width = 1700/300, height = 2850/300)#)#.png", , res = 300)
+draw(hmmb3)
+dev.off()
+```
+
+
+top75 proteins
+```{r}
+protdf <- weightdflong %>%
+  filter(!is.na(feature)) %>%
+  filter(str_detect(view, regex("protein\\s*$", ignore_case = TRUE))) %>% #feature to view
+  mutate(feature = str_replace(feature, "_.*$", "") |> str_trim())
+
+
+wdl1prot <- protdf[protdf$factor == "Factor1", ]
+wdl2prot <- protdf[protdf$factor == "Factor2", ]
+wdl3prot <- protdf[protdf$factor == "Factor3", ]
+
+wdf1prot <- reshape2::acast(wdl1prot, feature ~ view, value.var = "value")
+wdf2prot <- reshape2::acast(wdl2prot, feature ~ view, value.var = "value")
+wdf3prot <- reshape2::acast(wdl3prot, feature ~ view, value.var = "value")
+
+library(ComplexHeatmap)
+hmprot1 <- Heatmap(wdf1prot[order(rowSums(abs(wdf1prot)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 1 (Sex) Protein", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor1prot-wnaf.pdf", width = 900/300, height = 2700/300)#, res = 300)
+draw(hmprot1)
+dev.off()
+
+hmprot2 <- Heatmap(wdf2prot[order(rowSums(abs(wdf2prot)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 2 (Time Point) Protein", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor2prot-wnaf.pdf",width = 1250/300, height = 2700/300)#, res = 300))#.png", 
+draw(hmprot2)
+dev.off()
+
+hmprot3 <- Heatmap(wdf3prot[order(rowSums(abs(wdf3prot)),decreasing = TRUE)[1:75],], 
+        column_title = "factor 3 (Exercise) Protein", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 6), column_names_gp = gpar(fontsize = 8),
+        width = unit(20, "mm"), height = unit(200, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "Weight")
+pdf("wnaf-plots/factor3prot-wnaf.pdf", width = 1000/300, height = 2700/300)#.png", res = 300)
+draw(hmprot3)
+dev.off()
+```
+
+
+
+
+
+
+pathway
+
+reactome
+```{r}
+library(MOFAdata)
+utils::data(MSigDB_v6.0_C5_mouse)
+
+
+###WHY ARE THESE ALL UPPERCASE??????? CHANGING THEM TO FIRST UPPER ONLY, UNSURE IF THIS IS CORRECT. MIGHT NEED TO FIND/MAKE A BETTER BINARY DATABASE###
+names(MSigDB_v6.0_C5_mouse) <- sapply(
+  colnames(MSigDB_v6.0_C5_mouse),
+  function(x) {
+    x <- tolower(x)                              # make all lowercase
+    paste0(toupper(substring(x, 1, 1)), substring(x, 2))  # capitalize first letter
+  }
+)
+colnames(MSigDB_v6.0_C5_mouse) <- sapply(
+  colnames(MSigDB_v6.0_C5_mouse),
+  function(x) {
+    x <- tolower(x)                              # make all lowercase
+    paste0(toupper(substring(x, 1, 1)), substring(x, 2))  # capitalize first letter
+  }
+)
+#colnames(MSigDB_v6.0_C5_mouse) <- paste0(colnames(MSigDB_v6.0_C5_mouse),"_LIV_rna")
+head(names(MSigDB_v6.0_C5_mouse))
+
+
+```
+
+#this has to be done after the individual gene paths. the names are not unique so they will break. have to change to names that match the reactome database
+```{r}
+#rename features to be names
+namedf <- fread("~/Desktop/MOFA/all_mbrna-expr.txt")
+namedf = namedf[,c('ProbeID','Name')]
+rownames(namedf) <- namedf$ProbeID
+
+fn <- features_names(model)
+
+# 2) build new names
+fn_new <- lapply(fn, function(vnames) {
+  base <- sub("_.*$", "", vnames)             # drop from first underscore
+  idx  <- match(base, rownames(namedf))       # map via namedf
+  out  <- vnames
+  hit  <- !is.na(idx)
+  out[hit] <- namedf$Name[idx[hit]]
+  out
+})
+
+# 3) set back into the model
+features_names(model) <- fn_new
+
+meta <- features_metadata(model)
+meta$new_feature <- meta$feature
+for (v in unique(meta$view)) {
+  old <- meta$feature[meta$view == v]
+  base <- sub("_.*$", "", old)
+  idx  <- match(base, rownames(namedf))
+  hit  <- !is.na(idx)
+  meta$new_feature[meta$view == v][hit] <- namedf$Name[idx[hit]]
+}
+meta$feature <- meta$new_feature
+meta$new_feature <- NULL
+features_metadata(model) <- meta
+```
+
+```{r}
+
+quad.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "QUAD_rna"#,
+  #sign = "positive"
+)
+bf.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "BF_rna"#,
+  #sign = "positive"
+)
+gas.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "GAS_rna"#,   #####THIS WAS ACCIDENTALLY QUAD ---- RERUN
+  #sign = "positive"
+)
+hea.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "HEA_rna"#,
+  #sign = "positive"
+)
+liv.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "LIV_rna"#,
+  #sign = "positive"
+)
+lun.rna.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "LUN_rna"#,
+  #sign = "positive"
+)
+```
+
+```{r}
+rna.adj.pval <- list(QUAD=quad.rna.res$pval.adj,BF=bf.rna.res$pval.adj,GAS=gas.rna.res$pval.adj,
+                     HEA=hea.rna.res$pval.adj,LIV=liv.rna.res$pval.adj,LUN=lun.rna.res$pval.adj)
+all_rows <- unique(unlist(lapply(rna.adj.pval, rownames)))
+
+# 2. Initialize the final matrix with 1s
+pathway_mat1 <- matrix(1,
+                       nrow = length(all_rows),
+                       ncol = length(rna.adj.pval),
+                       dimnames = list(all_rows, names(rna.adj.pval)))
+
+# 3. Fill in each column with the Factor1 values (if present)
+for (nm in names(rna.adj.pval)) {
+  submat <- rna.adj.pval[[nm]]
+  
+  # Only proceed if Factor1 column exists
+  if ("Factor1" %in% colnames(submat)) {
+    fac1_vals <- submat[, "Factor1"]
+    pathway_mat1[rownames(submat), nm] <- fac1_vals
+  }
+}
+
+pathway_mat1 = -log10(pathway_mat1)
+
+pathway_mat1 <- pathway_mat1[apply(pathway_mat1, 1, function(x) any(x > -log10(0.05))), , drop = FALSE]
+
+
+pathway_mat2 <- matrix(1,
+                       nrow = length(all_rows),
+                       ncol = length(rna.adj.pval),
+                       dimnames = list(all_rows, names(rna.adj.pval)))
+
+# 3. Fill in each column with the Factor1 values (if present)
+for (nm in names(rna.adj.pval)) {
+  submat <- rna.adj.pval[[nm]]
+  
+  # Only proceed if Factor1 column exists
+  if ("Factor2" %in% colnames(submat)) {
+    fac2_vals <- submat[, "Factor2"]
+    pathway_mat2[rownames(submat), nm] <- fac2_vals
+  }
+}
+
+pathway_mat2 = -log10(pathway_mat2)
+pathway_mat2 <- pathway_mat2[apply(pathway_mat2, 1, function(x) any(x > -log10(0.05))), , drop = FALSE]
+
+pathway_mat3 <- matrix(1,
+                       nrow = length(all_rows),
+                       ncol = length(rna.adj.pval),
+                       dimnames = list(all_rows, names(rna.adj.pval)))
+
+# 3. Fill in each column with the Factor1 values (if present)
+for (nm in names(rna.adj.pval)) {
+  submat <- rna.adj.pval[[nm]]
+  
+  # Only proceed if Factor1 column exists
+  if ("Factor3" %in% colnames(submat)) {
+    fac3_vals <- submat[, "Factor3"]
+    pathway_mat3[rownames(submat), nm] <- fac3_vals
+  }
+}
+pathway_mat3 = -log10(pathway_mat3)
+pathway_mat3 <- pathway_mat3[apply(pathway_mat3, 1, function(x) any(x > -log10(0.05))), , drop = FALSE]
+
+```
+
+```{r}
+library(circlize)
+col_fun1 = colorRamp2(c(0, -log10(.001), max(pathway_mat1)), c("black", "yellow", "red"))
+hmpathrna1 <- Heatmap(pathway_mat1[order(rowSums(pathway_mat1),decreasing = TRUE)[1:25],],col = col_fun1,
+        column_title = "factor 1 (Sex) RNA pathways", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 9), column_names_gp = gpar(fontsize = 12),
+        width = unit(50, "mm"), height = unit(100, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "-Log10(p)")
+pdf("wnaf-plots/factor1-pathways-25-RNA-wnaf.pdf", width = 10.5)#, height = 1000)
+draw(hmpathrna1)
+dev.off()
+
+col_fun2 = colorRamp2(c(0, -log10(.001), max(pathway_mat2)), c("black", "yellow", "red"))
+hmpathrna2 <- Heatmap(pathway_mat2[order(rowSums(pathway_mat2),decreasing = TRUE)[1:25],],col = col_fun2,
+        column_title = "factor 2 (Time Point) RNA pathways", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 9), column_names_gp = gpar(fontsize = 12),
+        width = unit(50, "mm"), height = unit(100, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "-Log10(p)")
+
+pdf("wnaf-plots/factor2-pathways-25-RNA-wnaf.pdf", width = 10.5)#, height = 1000)
+draw(hmpathrna2)
+dev.off()
+
+
+col_fun3 = colorRamp2(c(0, -log10(.001), max(pathway_mat3)), c("black", "yellow", "red"))
+hmpathrna3 <- Heatmap(pathway_mat3[order(rowSums(pathway_mat3),decreasing = TRUE)[1:25],],col = col_fun3,
+        column_title = "factor 3 (Exercise) RNA pathways", cluster_columns = FALSE, 
+        row_names_gp = gpar(fontsize = 9), column_names_gp = gpar(fontsize = 12),
+        width = unit(50, "mm"), height = unit(100, "mm"), 
+        show_column_dend = FALSE, show_row_dend = FALSE,
+        rect_gp = gpar(col = "white", lwd = 1),
+        name = "-Log10(p)")
+
+pdf("wnaf-plots/factor3-pathways-25-RNA-wnaf.pdf", width = 10.5)#, height = 1000)
+draw(hmpathrna3)
+dev.off()
+```
+
+
+same thing but for proteins
+```{r}
+#reactome
+library(MOFAdata)
+utils::data(MSigDB_v6.0_C5_mouse)
+
+
+###WHY ARE THESE ALL UPPERCASE??????? CHANGING THEM TO FIRST UPPER ONLY, UNSURE IF THIS IS CORRECT. MIGHT NEED TO FIND/MAKE A BETTER BINARY DATABASE###
+names(MSigDB_v6.0_C5_mouse) <- sapply(
+  colnames(MSigDB_v6.0_C5_mouse),
+  function(x) {
+    x <- toupper(x)                              # make all UPPERcase
+    #paste0(toupper(substring(x, 1, 1)), substring(x, 2))  # capitalize first letter
+  }
+)
+colnames(MSigDB_v6.0_C5_mouse) <- sapply(
+  colnames(MSigDB_v6.0_C5_mouse),
+  function(x) {
+    x <- toupper(x)                              # make all UPPERcase
+    #paste0(toupper(substring(x, 1, 1)), substring(x, 2))  # capitalize first letter
+  }
+)
+#colnames(MSigDB_v6.0_C5_mouse) <- paste0(colnames(MSigDB_v6.0_C5_mouse),"_LIV_rna")
+head(names(MSigDB_v6.0_C5_mouse))
+
+####THIS WILL MISS THE COMBO NAMES : OR ; SEPARATED####
+```
+```{r}
+fn <- features_names(model)
+
+fn$BF_protein   <- sub("_.*$", "", fn$BF_protein) 
+fn$QUAD_protein <- sub("_.*$", "", fn$QUAD_protein)
+fn$GAS_protein  <- sub("_.*$", "", fn$GAS_protein)
+
+features_names(model) <- fn
+
+meta <- features_metadata(model)
+meta2 <- features_metadata(model)
+#meta$old_feature <- meta$feature
+
+
+
+for (v in unique(meta$view)) {
+  if(v %in% c('BF_protein','QUAD_protein','GAS_protein')){
+    old <- meta$feature[meta$view == v]
+    base <- sub("_.*$", "", old)
+    meta$feature[meta$view == v] <- base
+    #idx  <- match(base, rownames(namedf))
+    #hit  <- !is.na(idx)
+    #meta$new_feature[meta$view == v][hit] <- namedf$Name[idx[hit]]
+  }
+}
+features_metadata(model) <- meta
+```
+
+
+```{r}
+
+quad.prot.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "QUAD_protein"#,
+  #sign = "positive"
+)
+bf.prot.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "BF_protein"#,
+  #sign = "positive"
+)
+gas.prot.res<- run_enrichment(model, 
+  feature.sets = MSigDB_v6.0_C5_mouse, 
+  view = "GAS_protein"#,
+  #sign = "positive"
+)
+```
+```{r}
+gdt <- get_data(model, views = 'BF_protein', as.data.frame = FALSE)
+which(is.na(fn$BF_protein))
+```
+```{r}
+features <- get_data(model, views = "QUAD_protein")[[1]]
+sum(is.na(features))
+```
+```{r}
+dat <- get_data(model, views = "QUAD_protein", as.data.frame = FALSE)[[1]]
+if (is.list(dat)) dat <- Reduce(cbind, dat)
+
+# rows are features in the original matrix returned by get_data()
+all_na <- rowSums(!is.na(dat)) == 0
+one_obs <- rowSums(!is.na(dat)) < 2
+
+rs = rowSums(!is.na(dat))
+
+sum(all_na)
+sum(one_obs)
+
+rownames(dat)[all_na][1:20]
+rownames(dat)[one_obs][1:20]
+```
+
+```{r}
+dat2 <- t(dat)
+v <- apply(dat2, 2, function(x) var(x, na.rm = TRUE))
+
+sum(is.na(v))
+sum(v == 0, na.rm = TRUE)
+names(v)[is.na(v)][1:20]
+```
+
+
+
+
+
+```{r}
+dftst <- data.frame(
+  A = c(TRUE, FALSE, TRUE),
+  B = c(FALSE, TRUE, TRUE),
+  C = c(TRUE, FALSE, FALSE)
+)
+
+# Count the TRUE values for each row and store in a new column
+dftst$true_count <- rowSums(dftst)
+```
+```{r}
+sum(rowSums(!is.na(dat)) == 0)
+sum(rowSums(!is.na(dat)) < 2)
+```
+
