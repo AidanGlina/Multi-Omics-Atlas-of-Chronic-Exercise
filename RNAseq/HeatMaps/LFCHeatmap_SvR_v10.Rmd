@@ -1,0 +1,441 @@
+---
+title: "R Notebook"
+output:
+---
+```{r}
+####START RUNNING FROM HERE####
+
+###RUN THIS CHUNK ONLY ONCE####
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("ComplexHeatmap")
+
+
+library(ComplexHeatmap)  ##you will need to download this package
+
+
+
+dirpath ='C:/Users/Geraldine/PandaLab/Molecular/Heatmaps/' #'/Users/aidanglina/Desktop/mouse_excersise_data/allDESedvRw/' 
+mAllb <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/mLogFC_SvR.csv"))
+fAllb <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/fLogFC_SvR.csv"))
+mPadjb<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/mPadj_SvR.csv"))
+fPadjb<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/fPadj_SvR.csv"))
+cAllb <- read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/combLogFC_SvR.csv"))
+cPadjb <- read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/combPadj_SvR.csv"))
+
+m4All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/m4All_SvR.csv"))
+f4All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/f4All_SvR.csv"))
+m4Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/m4Padj_SvR.csv"))
+f4Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/f4Padj_SvR.csv"))
+
+m16All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/m16All_SvR.csv"))
+f16All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/f16All_SvR.csv"))
+m16Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/m16Padj_SvR.csv"))
+f16Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/f16Padj_SvR.csv"))
+
+mb_mAll <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_mAll_SvR.csv"))
+mb_fAll <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_fAll_SvR.csv"))
+mb_mPadj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_mPval_SvR.csv"))
+mb_fPadj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_fPval_SvR.csv"))
+
+mb_m4All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_m4All_SvR.csv"))
+mb_f4All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_f4All_SvR.csv"))
+mb_m4Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_m4Pval_SvR.csv"))
+mb_f4Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_f4Pval_SvR.csv"))
+mb_m16All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_m16All_SvR.csv"))
+mb_f16All <-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_f16All_SvR.csv"))
+mb_m16Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_m16Pval_SvR.csv"))
+mb_f16Padj<-read.csv(paste0(dirpath,"DEoutputbyTissue_SvR/metabolite_f16Pval_SvR.csv"))
+
+print("using non-adjusted pval for metabolites")
+
+alftissuelist = c("Hypothal", "Pituitary", "Adrenal", "BrownAdip", "inguinWAT", "epididWAT", "Kid", "Liver", "Lung", "Heart", "Dia", "BF", "SM", "ST", "Quad", "Gas", "Sol", "TA", "EDL", "GasTen", "EDLTen", "TATen") 
+newtissuenames = c('HPT','PIT','ADR','BAT','iWAT','gWAT','KID','LIV','LUN','HEA','DIA','BF','SM','ST','QUAD','GAS','SOL','TA','EDL','GASt','EDLt','TAt')
+newnameDF = data.frame(matrix(ncol = ncol(mAllb), nrow = 1))
+colnames(newnameDF) = append(c("gene_id","gene_name"),alftissuelist)
+newnameDF[1,] = append(c("gene_id","gene_name"),newtissuenames)
+
+mAllb = rbind(newnameDF,mAllb);colnames(mAllb) = mAllb[1,];mAllb = mAllb[-1,]
+fAllb = rbind(newnameDF,fAllb);colnames(fAllb) = fAllb[1,];fAllb = fAllb[-1,]
+cAllb = rbind(newnameDF,cAllb);colnames(cAllb) = cAllb[1,];cAllb = cAllb[-1,]
+cPadjb = rbind(newnameDF,cPadjb);colnames(cPadjb) = cPadjb[1,];cPadjb = cPadjb[-1,]
+fPadjb = rbind(newnameDF,fPadjb);colnames(fPadjb) = fPadjb[1,];fPadjb = fPadjb[-1,]
+mPadjb = rbind(newnameDF,mPadjb);colnames(mPadjb) = mPadjb[1,];mPadjb = mPadjb[-1,]
+
+mAllb[c(-1,-2)] = sapply(mAllb[c(-1,-2)],as.numeric)
+fAllb[c(-1,-2)] = sapply(fAllb[c(-1,-2)],as.numeric)
+cAllb[c(-1,-2)] = sapply(cAllb[c(-1,-2)],as.numeric)
+
+mPadjb[c(-1,-2)] = sapply(mPadjb[c(-1,-2)],as.numeric)
+fPadjb[c(-1,-2)] = sapply(fPadjb[c(-1,-2)],as.numeric)
+cPadjb[c(-1,-2)] = sapply(cPadjb[c(-1,-2)],as.numeric)
+
+m4All = rbind(newnameDF,m4All);colnames(m4All) = m4All[1,];m4All = m4All[-1,]
+f4All = rbind(newnameDF,f4All);colnames(f4All) = f4All[1,];f4All = f4All[-1,]
+f4Padj = rbind(newnameDF,f4Padj);colnames(f4Padj) = f4Padj[1,];f4Padj = f4Padj[-1,]
+m4Padj = rbind(newnameDF,m4Padj);colnames(m4Padj) = m4Padj[1,];m4Padj = m4Padj[-1,]
+
+m16All = rbind(newnameDF,m16All);colnames(m16All) = m16All[1,];m16All = m16All[-1,]
+f16All = rbind(newnameDF,f16All);colnames(f16All) = f16All[1,];f16All = f16All[-1,]
+f16Padj = rbind(newnameDF,f16Padj);colnames(f16Padj) = f16Padj[1,];f16Padj = f16Padj[-1,]
+m16Padj = rbind(newnameDF,m16Padj);colnames(m16Padj) = m16Padj[1,];m16Padj = m16Padj[-1,]
+
+m4All[c(-1,-2)] = sapply(m4All[c(-1,-2)],as.numeric)
+f4All[c(-1,-2)] = sapply(f4All[c(-1,-2)],as.numeric)
+m4Padj[c(-1,-2)] = sapply(m4Padj[c(-1,-2)],as.numeric)
+f4Padj[c(-1,-2)] = sapply(f4Padj[c(-1,-2)],as.numeric)
+
+m16All[c(-1,-2)] = sapply(m16All[c(-1,-2)],as.numeric)
+f16All[c(-1,-2)] = sapply(f16All[c(-1,-2)],as.numeric)
+f16Padj[c(-1,-2)] = sapply(f16Padj[c(-1,-2)],as.numeric)
+m16Padj[c(-1,-2)] = sapply(m16Padj[c(-1,-2)],as.numeric)
+
+#mb_mAll = rbind(newnameDF,mb_mAll);colnames(mb_mAll) = mb_mAll[1,];mb_mAll = mb_mAll[-1,]
+#mb_fAll = rbind(newnameDF,mb_fAll);colnames(mb_fAll) = mb_fAll[1,];mb_fAll = mb_fAll[-1,]
+#mb_fPadj = rbind(newnameDF,mb_fPadj);colnames(mb_fPadj) = mb_fPadj[1,];mb_fPadj = mb_fPadj[-1,]
+#mb_mPadj = rbind(newnameDF,mb_mPadj);colnames(mb_mPadj) = mb_mPadj[1,];mb_mPadj = mb_mPadj[-1,]
+#mb_mAll[c(-1,-2)] = sapply(mb_mAll[c(-1,-2)],as.numeric)
+#mb_fAll[c(-1,-2)] = sapply(mb_fAll[c(-1,-2)],as.numeric)
+#mb_mPadj[c(-1,-2)] = sapply(mb_mPadj[c(-1,-2)],as.numeric)
+#mb_fPadj[c(-1,-2)] = sapply(mb_fPadj[c(-1,-2)],as.numeric)
+
+cAll = cAllb
+cPadj = cPadjb
+```
+
+
+```{r}
+genelist2heatmap<- function(genelist, tissuelist = "muscle", zt = 0, metabolite = F, fsize = 8, sex = "all", save = F, clusterrows = F, nSig = 0, nSigGene = 0,  outputFileName =  "hm", ...){
+  mAll = mAllb
+  mPadj = mPadjb
+  fAll = fAllb
+  fPadj = fPadjb
+  #change 'all' in sex to C,M,F
+  #assign stat sig genes per letter
+  #check which letters are in sex
+  #only include unique genes in that overlap
+  if("all" %in% sex){sex = c("C","M","F")}
+  
+  if(zt == 4){
+    mAll  = m4All
+    fAll  = f4All
+    fPadj = f4Padj
+    mPadj = m4Padj
+  }
+  if(zt == 16){
+    mAll  = m16All
+    fAll  = f16All
+    fPadj = f16Padj
+    mPadj = m16Padj
+  }
+  if(metabolite == T){
+    if("C" %in% sex){sex = sex[-which(sex == "C")]}
+    print("using non-adjusted pval for metabolites")
+    if(zt==0){
+    mAll  = mb_mAll
+    fAll  = mb_fAll
+    fPadj = mb_fPadj
+    mPadj = mb_mPadj
+    }
+    if(zt == 4){
+    mAll  = mb_m4All
+    fAll  = mb_f4All
+    fPadj = mb_f4Padj
+    mPadj = mb_m4Padj
+    }
+    if(zt == 16){
+    mAll  = mb_m16All
+    fAll  = mb_f16All
+    fPadj = mb_f16Padj
+    mPadj = mb_m16Padj
+  }
+    
+  }
+  #short hand for common lists
+  if("muscle" %in% tissuelist) {
+    tissuelist <- R.utils::insert(tissuelist,match("muscle",tissuelist), 
+                                  c("BF","SM","ST","QUAD","GAS","SOL","TA","EDL"))
+    tissuelist <- tissuelist[-match("muscle",tissuelist)]
+    }
+  if("all" %in% tissuelist) {
+    tissuelist <- R.utils::insert(tissuelist,match("all",tissuelist), newtissuenames)
+    tissuelist <- tissuelist[-match("all",tissuelist)]
+  }
+  if("metabolite" %in% tissuelist){
+      tissuelist <- R.utils::insert(tissuelist,match("metabolite",tissuelist), 
+                                  c("PLA","iWAT","eWAT","LIV","LUN","HEA","BF","QUAD","GAS"))
+      tissuelist <- tissuelist[-match("metabolite",tissuelist)]
+  }
+
+  #make sure we get both gene name and ID if there is a mix
+  #nomatch = 0
+  md <-mAll[match(genelist,mAll$gene_name, nomatch = 0),]
+  md <- rbind(md, mAll[match(genelist,mAll$gene_id,0),])
+  md <- unique(md)
+  
+  fd <-fAll[match(genelist,fAll$gene_name,0),]
+  fd <- rbind(fd, fAll[match(genelist,fAll$gene_id,0),])
+  fd <- unique(fd)
+
+  mpd <- mPadj[match(genelist,mPadj$gene_name,0),]
+  mpd <- rbind(mpd, mPadj[match(genelist,mPadj$gene_id,0),])
+  mpd <- unique(mpd)
+  
+  fpd <- fPadj[match(genelist,fPadj$gene_name,0),]
+  fpd <- rbind(fpd, fPadj[match(genelist,fPadj$gene_id,0),])
+  fpd <- unique(fpd)
+  
+  if("C" %in% sex){
+  cd <-cAll[match(genelist,cAll$gene_name,0),]
+  cd <- rbind(cd, cAll[match(genelist,cAll$gene_id,0),])
+  cd <- unique(cd)
+  cpd <- cPadj[match(genelist,cPadj$gene_name,0),]
+  cpd <- rbind(cpd, cPadj[match(genelist,cPadj$gene_id,0),])
+  cpd <- unique(cpd)
+  ifelse(length(cpd$gene_name) == length(unique(cpd$gene_name)), rownames(cpd) <- cpd$gene_name, rownames(cpd) <- make.unique(cpd$gene_name))
+  cpd <- cpd[tissuelist]
+  }
+  
+  #set row names
+
+  ifelse(length(mpd$gene_name) == length(unique(mpd$gene_name)), rownames(mpd) <- mpd$gene_name, rownames(mpd) <- make.unique(mpd$gene_name))
+  ifelse(length(fpd$gene_name) == length(unique(fpd$gene_name)), rownames(fpd) <- fpd$gene_name, rownames(fpd) <- make.unique(fpd$gene_name))
+  
+  #subset pvals by tissuelist
+  mpd<- mpd[tissuelist]
+  fpd<- fpd[tissuelist]
+  
+  #cpd<- cpd[c('gene_name',tissuelist)] put this in and add j+1 to trouble shoot significance
+
+  #do all the subsetting for nSig and nSigGene (I could probably do this ahead of time to save time? maybe not)
+  if(nSig != 0 | nSigGene != 0){
+    if(nSig < 1){
+      if("C" %in% sex){tlc_p = colnames(cpd)[which(colSums(cpd <= .05,na.rm =T)/nrow(cpd) >= nSig)]}
+        tlm_p = colnames(mpd)[which(colSums(mpd <= .05,na.rm =T)/nrow(mpd) >= nSig)]
+        tlf_p = colnames(fpd)[which(colSums(fpd <= .05,na.rm =T)/nrow(fpd) >= nSig)]
+        if(setequal(sex,c("C","M","F"))){tissuelist = unique(c(tlc_p,tlm_p,tlf_p))}
+        else if(setequal(sex,c("C","M"))){tissuelist = unique(c(tlc_p,tlm_p))}
+        else if(setequal(sex,c("C","F"))){tissuelist = unique(c(tlc_p,tlf_p))}
+        else if(setequal(sex,c("F","M"))){tissuelist = unique(c(tlm_p,tlf_p))}
+        else if(setequal(sex,c("C"))){tissuelist = unique(tlc_p)}
+        else if(setequal(sex,c("M"))){tissuelist = unique(tlm_p)}
+        else if(setequal(sex,c("F"))){tissuelist = unique(tlf_p)}
+    }
+    else{
+        if("C" %in% sex){tlc = colnames(cpd)[which(colSums(cpd <= .05,na.rm =T) >= nSig)]}
+        tlm = colnames(mpd)[which(colSums(mpd <= .05,na.rm =T) >= nSig)]
+        tlf = colnames(fpd)[which(colSums(fpd <= .05,na.rm =T) >= nSig)]
+        if(setequal(sex,c("C","M","F"))){tissuelist = unique(c(tlc,tlm,tlf))}
+        else if(setequal(sex,c("C","M"))){tissuelist = unique(c(tlc,tlm))}
+        else if(setequal(sex,c("C","F"))){tissuelist = unique(c(tlc,tlf))}
+        else if(setequal(sex,c("F","M"))){tissuelist = unique(c(tlm,tlf))}
+        else if(setequal(sex,c("C"))){tissuelist = unique(tlc)}
+        else if(setequal(sex,c("M"))){tissuelist = unique(tlm)}
+        else if(setequal(sex,c("F"))){tissuelist = unique(tlf)}
+    }
+
+    if(nSig != 0  & nSigGene != 0){print("WARNING: subset tissues and subsetting genes separately. gene% susbset of total tissue list. This will change results.")}
+
+    if(nSigGene < 1){
+        if("C" %in% sex){glc_p = rownames(cpd)[which(rowSums(cpd <= .05,na.rm =T)/ncol(cpd) >= nSigGene)]}
+        glm_p = rownames(mpd)[which(rowSums(mpd <= .05,na.rm =T)/ncol(mpd) >= nSigGene)]
+        glf_p = rownames(fpd)[which(rowSums(fpd <= .05,na.rm =T)/ncol(fpd) >= nSigGene)]
+        if(setequal(sex,c("C","M","F"))){genelist = unique(c(glc_p,glm_p,glf_p))}
+        else if(setequal(sex,c("C","M"))){genelist = unique(c(glc_p,glm_p))}
+        else if(setequal(sex,c("C","F"))){genelist = unique(c(glc_p,glf_p))}
+        else if(setequal(sex,c("F","M"))){genelist = unique(c(glm_p,glf_p))}
+        else if(setequal(sex,c("C"))){genelist = unique(glc_p)}
+        else if(setequal(sex,c("M"))){genelist = unique(glm_p)}
+        else if(setequal(sex,c("F"))){genelist = unique(glf_p)}
+    }
+    else{
+        if("C" %in% sex){glc = rownames(cpd)[which(rowSums(cpd <= .05,na.rm =T) >= nSigGene)]}
+        glm = rownames(mpd)[which(rowSums(mpd <= .05,na.rm =T) >= nSigGene)]
+        glf = rownames(fpd)[which(rowSums(fpd <= .05,na.rm =T) >= nSigGene)]
+        if(setequal(sex,c("C","M","F"))){genelist = unique(c(glc,glm,glf))}
+        else if(setequal(sex,c("C","M"))){genelist = unique(c(glc,glm))}
+        else if(setequal(sex,c("C","F"))){genelist = unique(c(glc,glf))}
+        else if(setequal(sex,c("F","M"))){genelist = unique(c(glm,glf))}
+        else if(setequal(sex,c("C"))){genelist = unique(glc)}
+        else if(setequal(sex,c("M"))){genelist = unique(glm)}
+        else if(setequal(sex,c("F"))){genelist = unique(glf)}
+    }
+    if(nSig != 0){print(paste0("#tissues with ",nSig," sig genes: ",length(tissuelist)))}
+    if(nSigGene != 0){print(paste0("#genes sig in ",nSigGene," tissues: ",length(genelist)));print(genelist)}
+    
+    
+    
+    md <-mAll[match(genelist,mAll$gene_name, nomatch = 0),]
+    md <- rbind(md, mAll[match(genelist,mAll$gene_id,0),])
+    md <- unique(md)
+    fd <-fAll[match(genelist,fAll$gene_name,0),]
+    fd <- rbind(fd, fAll[match(genelist,fAll$gene_id,0),])
+    fd <- unique(fd)
+
+    mpd <- mPadj[match(genelist,mPadj$gene_name,0),]
+    mpd <- rbind(mpd, mPadj[match(genelist,mPadj$gene_id,0),])
+    mpd <- unique(mpd)
+    fpd <- fPadj[match(genelist,fPadj$gene_name,0),]
+    fpd <- rbind(fpd, fPadj[match(genelist,fPadj$gene_id,0),])
+    fpd <- unique(fpd)
+
+    mpd<- mpd[tissuelist]
+    fpd<- fpd[tissuelist]
+    
+    if("C" %in% sex){
+    cd <-cAll[match(genelist,cAll$gene_name,0),]
+    cd <- rbind(cd, cAll[match(genelist,cAll$gene_id,0),])
+    cd <- unique(cd)
+    cpd <- cPadj[match(genelist,cPadj$gene_name,0),]
+    cpd <- rbind(cpd, cPadj[match(genelist,cPadj$gene_id,0),])
+    cpd <- unique(cpd)
+    cpd<- cpd[tissuelist]
+    }
+
+  }
+  
+  if("C" %in% sex){
+    ifelse(length(cd$gene_name) == length(unique(cd$gene_name)), rownames(cd) <- cd$gene_name, rownames(cd) <- make.unique(cd$gene_name))
+    cd <- cd[c(-1,-2)]
+    print(paste("Combined ","minLFC:", min(cd[tissuelist],na.rm=T), " maxLFC:", max(cd[tissuelist],na.rm=T)))
+  }
+  ##DO I WANT TO SET ROW NAMES FOR PVALS TOO? MAYBE. I did up above
+  ifelse(length(md$gene_name) == length(unique(md$gene_name)), rownames(md) <- md$gene_name, rownames(md) <- make.unique(md$gene_name))
+  ifelse(length(fd$gene_name) == length(unique(fd$gene_name)), rownames(fd) <- fd$gene_name, rownames(fd) <- make.unique(fd$gene_name))
+  
+  
+  md <- md[c(-1,-2)]
+  fd <- fd[c(-1,-2)]
+
+  print(paste("Male   ",  "minLFC:", min(md[tissuelist],na.rm=T), " maxLFC:", max(md[tissuelist],na.rm=T)))
+  print(paste("Female ","minLFC:", min(fd[tissuelist],na.rm=T), " maxLFC:", max(fd[tissuelist],na.rm=T)))
+
+  #View(cpd)
+  if(hasArg(lrange)){
+    lrange <- list(...)$lrange
+    mhi <- lrange[2]
+    mlo <- lrange[1]
+    fhi <- lrange[2]
+    flo <- lrange[1]
+    if("C" %in% sex){
+    chi <- lrange[2]
+    clo <- lrange[1]
+    }
+  }
+  else{
+    mhi <- max(md[tissuelist],na.rm=T)
+    mlo <- min(md[tissuelist],na.rm=T)
+    fhi <- max(fd[tissuelist],na.rm=T)
+    flo <- min(fd[tissuelist],na.rm=T)
+    if("C" %in% sex){
+    chi <- max(cd[tissuelist],na.rm=T)
+    clo <- min(cd[tissuelist],na.rm=T)
+    }
+  }
+  #print(paste("mlo:",mlo,"mhi:",mhi))
+  if(mlo == Inf)  {mlo = 0.001}
+  if(mhi == -Inf) {print("WARNING, MALE ALL NA LOGFC VALUES");mhi = -0.001}
+  if(flo == Inf)  {print("WARNING, FEMALE ALL NA LOGFC VALUES");flo = 0.001}
+  if(fhi == -Inf) {fhi = -0.001}
+  if("C" %in% sex){
+    if(clo == Inf)  {clo = 0.001}
+    if(chi == -Inf) {print("WARNING, COMBINED ALL NA LOGFC VALUES");chi = -0.001}
+  }
+  
+  
+  Mtitle = "M";Ftitle = "F"
+  if(zt==4){Mtitle = "M 4";Ftitle = "F 4"}
+  if(zt==16){Mtitle = "M 16";Ftitle = "F 16"}
+  hmMale =   Heatmap(md[tissuelist], cluster_columns = F, cluster_rows = clusterrows, show_column_names = T, show_row_names = T,
+               column_names_gp = gpar(fontsize = fsize), row_names_gp = gpar(fontsize = fsize), column_title = Mtitle,
+               col = circlize::colorRamp2(c(mlo, 0, mhi), c("mediumslateblue", "white", "mediumvioletred")),
+               heatmap_legend_param = list(title = "log2(FC)",title_position = "leftcenter-rot",color_bar="continuous"),
+               height = length(genelist)*unit(6, "points"), width = length(tissuelist)*unit(6, "points"),
+               rect_gp = gpar(col = "black", lwd = .5),
+               cell_fun = function(j, i, x, y, w, h, fill) {
+                 t <- "" 
+                 if(!is.na(mpd[i, j])){
+                    if(mpd[i, j] < 0.05) {t<-paste0(t,"*")}}
+                 #if(!is.na(cpd[i, j])){  
+                 #   if(cpd[i, j] < 0.05) {t<-paste0(t,"")}} #removed the space  #;print(paste(i,j,cpd$gene_name[i],colnames(cpd)[j]))}} #◊ #°
+                 grid.text(t, x, y)
+                    #if(mPadj[i, j] < 0.001)  {grid.text("***", x, y)} 
+                    #else if(mPadj[i, j] < 0.01) {grid.text("**", x, y)}
+                    #else if(mPadj[i, j] < 0.05) {grid.text("*", x, y)}
+                    })
+  hmFemale = Heatmap(fd[tissuelist], cluster_columns = F, cluster_rows = clusterrows, show_column_names = T, show_row_names = T,
+               column_names_gp = gpar(fontsize = fsize), row_names_gp = gpar(fontsize = fsize), column_title = Ftitle,
+               col = circlize::colorRamp2(c(flo, 0, fhi), c("mediumslateblue", "white", "mediumvioletred")),
+               heatmap_legend_param = list(title = "log2(FC)",title_position = "leftcenter-rot",color_bar="continuous"),
+               height = length(genelist)*unit(6, "points"), width = length(tissuelist)*unit(6, "points"),
+               rect_gp = gpar(col = "black", lwd = .5),
+               cell_fun = function(j, i, x, y, w, h, fill) {
+                t <- "" 
+                if(!is.na(fpd[i, j])){
+                    if(fpd[i, j] < 0.05) {t<-paste0(t,"*")}}
+                 #if(!is.na(cpd[i, j])){  
+                 #   if(cpd[i, j] < 0.05) {t<-paste0(t,"")}} #removed the space   #◊ #°
+                 grid.text(t, x, y)
+                    #if(fPadj[i, j] < 0.001)  {grid.text("***", x, y)} 
+                    #else if(fPadj[i, j] < 0.01) {grid.text("**", x, y)}
+                    #else if(fPadj[i, j] < 0.05) {grid.text("*", x, y)}
+                    })
+  if("C" %in% sex){
+    hmComb =   Heatmap(cd[tissuelist], cluster_columns = F, cluster_rows = clusterrows, show_column_names = T, show_row_names = T,
+               column_names_gp = gpar(fontsize = fsize), row_names_gp = gpar(fontsize = fsize), column_title = "",
+               col = circlize::colorRamp2(c(clo, 0, chi), c("mediumslateblue", "white", "mediumvioletred")),
+               heatmap_legend_param = list(title = "log2(FC)",title_position = "leftcenter-rot",color_bar="continuous"),
+               height = length(genelist)*unit(6, "points"), width = length(tissuelist)*unit(6, "points"),
+               rect_gp = gpar(col = "black", lwd = .5),
+               cell_fun = function(j, i, x, y, w, h, fill) {
+                 t <- "" 
+                 if(!is.na(cpd[i, j])){
+                      if(cpd[i, j] < 0.05) {t<-paste0(t,"*")}}
+                  grid.text(t, x, y)
+                    #if(cPadj[i, j] < 0.001)  {grid.text("***", x, y)} 
+                    #else if(cPadj[i, j] < 0.01) {grid.text("**", x, y)}
+                    #else if(cPadj[i, j] < 0.05) {grid.text("*", x, y)}}
+                  })
+  }
+#hm = hmComb
+if("all" %in% sex){hm = hmComb + hmMale + hmFemale}
+else{
+  hm = c()
+  if("C" %in% sex || "Comb" %in% sex || "Combined" %in% sex){hm = append(hm,'C')}
+  if("M" %in% sex || "Male" %in% sex){hm = append(hm,'M')}
+  if("F" %in% sex || "Female" %in% sex){hm = append(hm,'F')}
+  if(setequal(hm,c("C","M","F"))){hm = hmComb + hmMale + hmFemale}
+  else if(setequal(hm,c("C","M"))){hm = hmComb + hmMale}
+  else if(setequal(hm,c("C","F"))){hm = hmComb + hmFemale}
+  else if(setequal(hm,c("F","M"))){hm = hmFemale + hmMale}
+  else if(setequal(hm,c("C"))){hm = hmComb}
+  else if(setequal(hm,c("M"))){hm = hmMale}
+  else if(setequal(hm,c("F"))){hm = hmFemale}
+}
+draw(hm)
+if(save==T){
+  svglite::svglite(paste0("C:/Users/YourName/Heatmaps/Output",outputFileName,'.svg'),bg = "transparent", height = 1+length(genelist)/11, width = 3+length(tissuelist))
+                   #, res=300)#, width = 5, height = (0.1969*nrow(hm)+1.0631), 
+    #    units = "in", res = 100) "C:/Users/Geraldine/PandaLab/Molecular/Heatmaps/Output/"
+draw(hm)
+dev.off()
+}}
+```
+###Parameters:###
+#use sex = c("Comb","Male","Female")  or sex = c("C","M","F") to choose which of the heatmaps you would like to include
+#automatically clusters genes. Turn gene clustering OFF by setting clusterrows = F in the function
+#set lrange = c(min,max) to manually set the legend to a min and max value, i.e c(-10,10)
+#set nSig to the number of significant genes a tissue must have to be included in the heat map. The number can be the fraction of significant genes or the number of significant genes (1 = 100%)
+#set nSigGene to the number of significant tissues a gene must have to be included in the heat map. The number can be the fraction of significant tissues or the number of significant tissues (1 = 100%)
+#outputFileName sets the name of the file to save at 'C:/Users/YourName/Heatmaps/Output/'. for instance, outputFileName = 'Maieretal_Genes'
+
+
+
+
+
+
+
+
+
+
